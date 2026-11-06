@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import "./shared/chat.css";
 import "./App.css";
 import { EVENTS, type ChatMessage, type EngineState } from "./shared/chat";
+import { MicrophoneSettings, Transcript } from "./Hearing";
 
 interface AppInfo {
   overlayUrl: string;
@@ -109,6 +110,8 @@ function App() {
         </section>
 
         <aside className="side">
+          <MicrophoneSettings />
+
           <h2>OBS Overlay</h2>
           <p>
             In OBS, add a <strong>Browser</strong> source with this URL. Its background is transparent.
@@ -130,6 +133,8 @@ function App() {
               </div>
             ))}
           </dl>
+
+          <Transcript />
         </aside>
       </main>
     </div>

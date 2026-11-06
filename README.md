@@ -6,7 +6,9 @@ An AI Practice Chat for small streamers, so you always have someone to talk to. 
 
 ## Development
 
-Prerequisites: the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (Rust, plus the Xcode command line tools on macOS or the MSVC build tools on Windows) and Node.js LTS.
+Prerequisites: the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (Rust, plus the Xcode command line tools on macOS or the MSVC build tools on Windows), Node.js LTS, and [CMake](https://cmake.org/download/) for building whisper.cpp (`brew install cmake` on macOS; on Windows, tick "C++ CMake tools for Windows" in the Visual Studio Build Tools installer).
+
+The first launch downloads the speech model (~60 MB) into the app's data folder.
 
 ```sh
 npm install

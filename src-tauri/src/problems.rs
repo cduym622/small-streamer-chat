@@ -17,12 +17,14 @@ impl Problems {
     }
 }
 
+/// Shows a problem to the streamer. Repeats of one already shown are skipped.
 pub fn report(app: &AppHandle, message: String) {
     eprintln!("{message}");
-    app.state::<Problems>()
-        .0
-        .lock()
-        .unwrap()
-        .push(message.clone());
+    let state = app.state::<Problems>();
+    let mut problems = state.0.lock().unwrap();
+    if problems.contains(&message) {
+        return;
+    }
+    problems.push(message.clone());
     let _ = app.emit(EVENT, message);
 }

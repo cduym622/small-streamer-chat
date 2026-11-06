@@ -141,6 +141,13 @@ button[aria-pressed="true"] {
   font-style: italic;
 }
 
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .side h2 {
   margin: 4px 0 4px;
   font-size: 14px;
@@ -192,4 +199,74 @@ kbd {
   border-radius: 4px;
   border: 1px solid var(--border);
   background: var(--panel);
+}
+
+.mic-picker {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+}
+
+.mic-meter {
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.mic-meter div {
+  height: 100%;
+  background: #22c55e;
+  transition: width 0.1s linear;
+}
+
+.hint {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.error,
+.model-failed {
+  color: #dc2626;
+}
+
+.model-status {
+  margin: 4px 0 20px;
+  font-size: 13px;
+}
+
+.model-status button {
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.model-ready {
+  color: #16a34a;
+}
+
+.transcript {
+  margin-top: 16px;
+}
+
+.transcript summary {
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.transcript-lines {
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.transcript-lines p {
+  margin: 6px 0;
 }

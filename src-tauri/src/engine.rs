@@ -1,15 +1,12 @@
 //! The Practice Chat engine. It runs in the Rust core (not the webview) so it
 //! keeps going while the window is hidden or minimized (see ADR 0002).
 
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Runtime};
 use tokio::{
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, watch},
     time::{Instant, sleep_until},
 };
 
@@ -24,7 +21,7 @@ const FIRST_MESSAGE_DELAY: Duration = Duration::from_secs(3);
 pub const STATE_EVENT: &str = "engine-state";
 pub const MESSAGE_EVENT: &str = "chat-message";
 
-#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineState {
     /// A Session is in progress.
@@ -52,7 +49,7 @@ pub enum Command {
 #[derive(Clone)]
 pub struct EngineHandle {
     commands: mpsc::UnboundedSender<Command>,
-    state: Arc<Mutex<EngineState>>,
+    state: watch::Sender<EngineState>,
     messages: broadcast::Sender<ChatMessage>,
 }
 
@@ -62,7 +59,12 @@ impl EngineHandle {
     }
 
     pub fn state(&self) -> EngineState {
-        *self.state.lock().unwrap()
+        *self.state.borrow()
+    }
+
+    /// Follows state changes (Start/Stop, Back-off).
+    pub fn watch_state(&self) -> watch::Receiver<EngineState> {
+        self.state.subscribe()
     }
 
     /// New Practice Chat messages, as they're posted.
@@ -76,7 +78,7 @@ pub fn spawn<R: Runtime>(app: AppHandle<R>) -> EngineHandle {
     let (messages, _) = broadcast::channel(64);
     let handle = EngineHandle {
         commands,
-        state: Arc::new(Mutex::new(EngineState::default())),
+        state: watch::Sender::new(EngineState::default()),
         messages,
     };
     let engine = Engine {
@@ -148,7 +150,7 @@ impl<R: Runtime> Engine<R> {
         if !state.running {
             state.backed_off = false;
         }
-        *self.handle.state.lock().unwrap() = state;
+        self.handle.state.send_replace(state);
         let _ = self.app.emit(STATE_EVENT, state);
         state
     }
