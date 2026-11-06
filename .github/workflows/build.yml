@@ -1,0 +1,70 @@
+# Builds unsigned installers for Windows and macOS.
+# - Pull requests and manual runs: installers are attached to the run as artifacts.
+# - Pushing a `v*` tag: installers are attached to a draft GitHub Release for that tag.
+name: Build installers
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # Apple Silicon
+            args: --target aarch64-apple-darwin
+            rust-target: aarch64-apple-darwin
+          - platform: macos-latest # Intel
+            args: --target x86_64-apple-darwin
+            rust-target: x86_64-apple-darwin
+          - platform: windows-latest
+            args: ""
+            rust-target: ""
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
+          # Only create a release for tag pushes; otherwise just upload artifacts.
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('Small Streamer Chat {0}', github.ref_name) || '' }}
+          releaseBody: |
+            Download the installer for your computer:
+            - **Windows:** the `-setup.exe` file
+            - **Mac with Apple Silicon (M1 or newer):** the `aarch64.dmg` file
+            - **Mac with Intel:** the `x64.dmg` file
+
+            These builds are not code-signed yet, so Windows and macOS will show a warning the first time you open them.
+          releaseDraft: true
+          prerelease: false
+          uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/v') }}
