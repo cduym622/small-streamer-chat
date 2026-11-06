@@ -1,0 +1,32 @@
+/* Twitch-style chat lines, shared by the app window and the Overlay. */
+
+.chat-line {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+}
+
+/* Required AI Badge: its style may change, but it is never removed. */
+.ai-badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #9333ea;
+  color: #fff;
+  font-size: 0.7em;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+
+.chatter {
+  font-weight: 700;
+}
+
+.chat-line .text {
+  color: inherit;
+}
