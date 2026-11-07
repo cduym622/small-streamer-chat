@@ -99,3 +99,19 @@ jobs:
           releaseDraft: true
           prerelease: false
           uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      # Job logs need repo access, but annotations are public: re-run a failed
+      # build and post its error as an annotation so anyone can see it.
+      - name: Show the build error
+        if: failure()
+        shell: bash
+        run: |
+          npm run tauri build -- ${{ matrix.args }} > build.log 2>&1 || true
+          tools="$(sw_vers -productVersion 2>/dev/null) $(xcodebuild -version 2>/dev/null | head -1)"
+          error=$(grep -E -B3 -A30 '^error|Error |Undefined symbols|panicked|fatal error' build.log | tail -100)
+          [ -n "$error" ] || error=$(tail -60 build.log)
+          error="macOS/Xcode: $tools"$'\n'"$error"
+          error=${error//'%'/'%25'}
+          error=${error//$'\r'/}
+          error=${error//$'\n'/'%0A'}
+          echo "::error title=Build error::$error"
