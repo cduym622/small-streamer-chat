@@ -13,7 +13,15 @@ export interface EngineState {
   backedOff: boolean;
   /** AI cost of the current (or last) Session, in US dollars. */
   sessionCost: number;
+  /** The AI Connection writing the messages. */
+  provider: Provider;
 }
+
+/** Which AI Connection writes the messages; "none" uses canned lines. */
+export type Provider = "none" | "anthropic" | "chatGpt";
+
+/** Where the streamer sees and limits this app's use of their ChatGPT plan. */
+export const CHATGPT_USAGE_URL = "https://chatgpt.com/#settings/Usage";
 
 export type ModelStatus =
   | { state: "checking" | "loading" | "ready" }
@@ -49,4 +57,5 @@ export const EVENTS = {
   hearingStatus: "hearing-status",
   transcript: "transcript",
   micLevel: "mic-level",
+  aiStatus: "ai-status",
 } as const;

@@ -15,6 +15,22 @@ pub struct Settings {
     pub microphone: Option<String>,
     /// What the stream is about, in the streamer's words (Stream Context).
     pub stream_context: String,
+    /// The ChatGPT account signed in with (its tokens are in the keychain).
+    pub chatgpt: Option<ChatGptAccount>,
+    /// This computer's ID for ChatGPT sign-in, made on first use.
+    pub chatgpt_host_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatGptAccount {
+    /// Issued to this app for this account when it was first signed in.
+    pub client_id: String,
+    pub email: String,
+    /// OpenAI's ID for the account.
+    pub subject: String,
+    /// The chosen model; `None` uses the smallest, fastest one on offer.
+    pub model: Option<String>,
 }
 
 fn path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
