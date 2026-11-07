@@ -13,6 +13,8 @@ const FILE_NAME: &str = "settings.json";
 pub struct Settings {
     /// Chosen microphone's device id; `None` follows the system default.
     pub microphone: Option<String>,
+    /// What the stream is about, in the streamer's words (Stream Context).
+    pub stream_context: String,
 }
 
 fn path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {

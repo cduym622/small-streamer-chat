@@ -4,7 +4,7 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 pub const EVENT: &str = "problem";
 
@@ -15,12 +15,19 @@ impl Problems {
     pub fn all(&self) -> Vec<String> {
         self.0.lock().unwrap().clone()
     }
+
+    /// The streamer dismissed it; it can be shown again if it happens again.
+    pub fn dismiss(&self, message: &str) {
+        self.0.lock().unwrap().retain(|problem| problem != message);
+    }
 }
 
 /// Shows a problem to the streamer. Repeats of one already shown are skipped.
-pub fn report(app: &AppHandle, message: String) {
+pub fn report<R: Runtime>(app: &AppHandle<R>, message: String) {
     eprintln!("{message}");
-    let state = app.state::<Problems>();
+    let Some(state) = app.try_state::<Problems>() else {
+        return;
+    };
     let mut problems = state.0.lock().unwrap();
     if problems.contains(&message) {
         return;
