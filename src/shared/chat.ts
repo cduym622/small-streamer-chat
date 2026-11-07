@@ -13,9 +13,38 @@ export interface EngineState {
   backedOff: boolean;
 }
 
+export type ModelStatus =
+  | { state: "checking" | "loading" | "ready" }
+  | { state: "downloading"; percent: number }
+  | { state: "failed"; error: string };
+
+export interface HearingStatus {
+  model: ModelStatus;
+  /** The mic is open (a Session is running). */
+  listening: boolean;
+  /** The chosen mic's id; `null` follows the system default. */
+  microphone: string | null;
+  /** Name of the mic in use while listening. */
+  microphoneName: string | null;
+}
+
+export interface Microphone {
+  id: string;
+  name: string;
+}
+
+/** One thing the streamer said, as heard by speech recognition. */
+export interface TranscriptLine {
+  id: number;
+  text: string;
+}
+
 /** Event names emitted by the Rust core. */
 export const EVENTS = {
   message: "chat-message",
   state: "engine-state",
   problem: "problem",
+  hearingStatus: "hearing-status",
+  transcript: "transcript",
+  micLevel: "mic-level",
 } as const;

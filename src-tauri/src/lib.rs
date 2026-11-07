@@ -1,9 +1,12 @@
 mod chat;
 mod engine;
+mod hearing;
 mod hotkeys;
 mod overlay;
 mod personas;
 mod problems;
+mod settings;
+mod speech_model;
 
 use std::fs;
 
@@ -16,6 +19,7 @@ use tauri::{
 use tauri_plugin_dialog::DialogExt;
 
 use engine::{Command, EngineHandle, EngineState};
+use hearing::{HearingHandle, HearingStatus, Microphone};
 use problems::Problems;
 
 const MAIN_WINDOW: &str = "main";
@@ -129,6 +133,47 @@ fn nudge(engine: State<EngineHandle>) {
     engine.send(Command::Nudge);
 }
 
+#[tauri::command]
+fn hearing_status(hearing: State<HearingHandle>) -> HearingStatus {
+    hearing.status()
+}
+
+#[tauri::command]
+fn list_microphones() -> Vec<Microphone> {
+    hearing::microphones()
+}
+
+#[tauri::command]
+fn set_microphone(
+    id: Option<String>,
+    app: AppHandle,
+    hearing: State<HearingHandle>,
+) -> Result<(), String> {
+    let mut settings = settings::load(&app);
+    settings.microphone = id.clone();
+    settings::save(&app, &settings).map_err(|e| format!("Couldn't save your choice: {e}"))?;
+    hearing.set_microphone(id);
+    Ok(())
+}
+
+#[tauri::command]
+fn retry_speech_model(app: AppHandle, hearing: State<HearingHandle>) {
+    hearing.prepare_model(app);
+}
+
+/// The mic is open exactly while a Session is running.
+fn listen_during_sessions(engine: &EngineHandle, hearing: HearingHandle) {
+    let mut states = engine.watch_state();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            hearing.listen(states.borrow_and_update().running);
+            if states.changed().await.is_err() {
+                break;
+            }
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -150,13 +195,21 @@ pub fn run() {
             engine_state,
             set_running,
             set_back_off,
-            nudge
+            nudge,
+            hearing_status,
+            list_microphones,
+            set_microphone,
+            retry_speech_model
         ])
         .setup(|app| {
             let handle = app.handle();
             build_tray(handle)?;
             let engine = engine::spawn(handle.clone());
             app.manage(engine.clone());
+            let hearing = hearing::spawn(handle.clone(), settings::load(handle).microphone);
+            hearing.prepare_model(handle.clone());
+            listen_during_sessions(&engine, hearing.clone());
+            app.manage(hearing);
             overlay::spawn(handle.clone(), engine);
             hotkeys::register(handle)?;
             Ok(())

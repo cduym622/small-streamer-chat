@@ -99,3 +99,13 @@ jobs:
           releaseDraft: true
           prerelease: false
           uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      # Job logs need repo access, but annotations are public: re-run a failed
+      # build and post its error as an annotation so anyone can see it.
+      - name: Show the build error
+        if: failure()
+        shell: bash
+        run: |
+          npm run tauri build -- ${{ matrix.args }} > build.log 2>&1 || true
+          echo "tools: $(sw_vers -productVersion 2>/dev/null) $(xcodebuild -version 2>/dev/null | head -1)" >> build.log
+          python3 .github/annotate-build-error.py build.log

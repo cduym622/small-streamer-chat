@@ -1,0 +1,10 @@
+[env]
+# whisper.cpp otherwise compiles for the exact CPU of the machine building it,
+# and the installer would crash on streamers' PCs with older CPUs. OFF targets
+# AVX2 (Intel 2013+ / AMD 2015+) on x86 and the Apple M1 baseline on ARM.
+GGML_NATIVE = "OFF"
+
+# Matches `minimumSystemVersion` in tauri.conf.json, so dev builds and tests
+# compile whisper.cpp the same way as the installer. whisper.cpp needs at
+# least 10.15 for C++ std::filesystem.
+MACOSX_DEPLOYMENT_TARGET = "11.0"
