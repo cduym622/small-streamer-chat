@@ -1,7 +1,9 @@
+mod ai;
 mod chat;
 mod engine;
 mod hearing;
 mod hotkeys;
+mod keychain;
 mod overlay;
 mod personas;
 mod problems;
@@ -134,6 +136,87 @@ fn nudge(engine: State<EngineHandle>) {
 }
 
 #[tauri::command]
+fn dismiss_problem(message: String, problems: State<Problems>) {
+    problems.dismiss(&message);
+}
+
+/// Which AI Connection is set up. The key itself never goes to the UI.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AiStatus {
+    connected: bool,
+    /// The end of the key, so the streamer can tell which one it is.
+    key_hint: Option<String>,
+}
+
+fn key_hint(key: &str) -> String {
+    let tail: String = key
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    format!("…{tail}")
+}
+
+#[tauri::command]
+fn ai_status() -> Result<AiStatus, String> {
+    let key = keychain::anthropic_key()?;
+    Ok(AiStatus {
+        connected: key.is_some(),
+        key_hint: key.as_deref().map(key_hint),
+    })
+}
+
+/// Checks the key with Anthropic, then saves it and starts using it.
+#[tauri::command]
+async fn save_anthropic_key(
+    key: String,
+    engine: State<'_, EngineHandle>,
+) -> Result<AiStatus, String> {
+    let key = key.trim().to_string();
+    if key.is_empty() {
+        return Err("Paste your Anthropic API key first.".into());
+    }
+    let ai = ai::Anthropic::new(key.clone());
+    ai.check_key().await?;
+    keychain::set_anthropic_key(&key)?;
+    engine.send(Command::SetAi(Some(ai)));
+    Ok(AiStatus {
+        connected: true,
+        key_hint: Some(key_hint(&key)),
+    })
+}
+
+#[tauri::command]
+fn remove_anthropic_key(engine: State<EngineHandle>) -> Result<(), String> {
+    keychain::remove_anthropic_key()?;
+    engine.send(Command::SetAi(None));
+    Ok(())
+}
+
+#[tauri::command]
+fn stream_context(app: AppHandle) -> String {
+    settings::load(&app).stream_context
+}
+
+#[tauri::command]
+fn set_stream_context(
+    context: String,
+    app: AppHandle,
+    engine: State<EngineHandle>,
+) -> Result<(), String> {
+    let mut settings = settings::load(&app);
+    settings.stream_context = context.clone();
+    settings::save(&app, &settings)
+        .map_err(|e| format!("Couldn't save the Stream Context: {e}"))?;
+    engine.send(Command::SetStreamContext(context));
+    Ok(())
+}
+
+#[tauri::command]
 fn hearing_status(hearing: State<HearingHandle>) -> HearingStatus {
     hearing.status()
 }
@@ -199,14 +282,26 @@ pub fn run() {
             hearing_status,
             list_microphones,
             set_microphone,
-            retry_speech_model
+            retry_speech_model,
+            dismiss_problem,
+            ai_status,
+            save_anthropic_key,
+            remove_anthropic_key,
+            stream_context,
+            set_stream_context
         ])
         .setup(|app| {
             let handle = app.handle();
             build_tray(handle)?;
+            let settings = settings::load(handle);
             let engine = engine::spawn(handle.clone());
+            engine.send(Command::SetStreamContext(settings.stream_context));
+            match keychain::anthropic_key() {
+                Ok(key) => engine.send(Command::SetAi(key.map(ai::Anthropic::new))),
+                Err(error) => problems::report(handle, error),
+            }
             app.manage(engine.clone());
-            let hearing = hearing::spawn(handle.clone(), settings::load(handle).microphone);
+            let hearing = hearing::spawn(handle.clone(), settings.microphone, engine.clone());
             hearing.prepare_model(handle.clone());
             listen_during_sessions(&engine, hearing.clone());
             app.manage(hearing);

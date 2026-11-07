@@ -270,3 +270,68 @@ kbd {
 .transcript-lines p {
   margin: 6px 0;
 }
+
+.cost {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.problems p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.problems button,
+.ai-connected button {
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.stream-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stream-context input,
+.key-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 400;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+}
+
+.key-form {
+  display: flex;
+  gap: 6px;
+}
+
+.key-form button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.ai-connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 20px;
+  font-size: 13px;
+  color: #16a34a;
+}
+
+.side .error + h2,
+.key-form + h2 {
+  margin-top: 20px;
+}

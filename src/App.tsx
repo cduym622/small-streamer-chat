@@ -5,6 +5,7 @@ import "./shared/chat.css";
 import "./App.css";
 import { EVENTS, type ChatMessage, type EngineState } from "./shared/chat";
 import { MicrophoneSettings, Transcript } from "./Hearing";
+import { AiConnection } from "./AiConnection";
 
 interface AppInfo {
   overlayUrl: string;
@@ -17,10 +18,15 @@ const MAX_LINES = 200;
 
 function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const [state, setState] = useState<EngineState>({ running: false, backedOff: false });
+  const [state, setState] = useState<EngineState>({
+    running: false,
+    backedOff: false,
+    sessionCost: 0,
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [streamContext, setStreamContext] = useState("");
   const chatEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,6 +35,7 @@ function App() {
       setProblems(appInfo.problems);
     });
     invoke<EngineState>("engine_state").then(setState);
+    invoke<string>("stream_context").then(setStreamContext);
 
     const unlisten = [
       listen<EngineState>(EVENTS.state, (event) => setState(event.payload)),
@@ -53,6 +60,16 @@ function App() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const saveStreamContext = () =>
+    invoke("set_stream_context", { context: streamContext }).catch((error) =>
+      setProblems((previous) => [...previous, String(error)]),
+    );
+
+  const dismissProblem = (problem: string) => {
+    invoke("dismiss_problem", { message: problem });
+    setProblems((previous) => previous.filter((p) => p !== problem));
+  };
+
   const status = !state.running ? "Stopped" : state.backedOff ? "Backed off" : "Live";
 
   return (
@@ -60,15 +77,33 @@ function App() {
       <header className="app-header">
         <h1>Small Streamer Chat</h1>
         <span className={`status status-${status.toLowerCase().replace(" ", "-")}`}>{status}</span>
+        <span className="cost" title="What this Session has cost on your Anthropic account so far">
+          Session cost ${state.sessionCost.toFixed(4)}
+        </span>
       </header>
 
       {problems.length > 0 && (
         <div className="problems" role="alert">
           {problems.map((problem) => (
-            <p key={problem}>{problem}</p>
+            <p key={problem}>
+              {problem}
+              <button onClick={() => dismissProblem(problem)}>Dismiss</button>
+            </p>
           ))}
         </div>
       )}
+
+      <label className="stream-context">
+        <span>What's the stream about?</span>
+        <input
+          placeholder="e.g. first time playing Elden Ring, chill vibes"
+          value={streamContext}
+          maxLength={300}
+          onChange={(event) => setStreamContext(event.target.value)}
+          onBlur={saveStreamContext}
+          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        />
+      </label>
 
       <div className="controls">
         <button
@@ -110,6 +145,8 @@ function App() {
         </section>
 
         <aside className="side">
+          <AiConnection />
+
           <MicrophoneSettings />
 
           <h2>OBS Overlay</h2>

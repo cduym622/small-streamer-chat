@@ -146,6 +146,11 @@ impl Default for PauseDetector {
 }
 
 impl PauseDetector {
+    /// In the middle of an utterance.
+    pub fn is_speaking(&self) -> bool {
+        !self.utterance.is_empty()
+    }
+
     /// Feeds audio in and returns any utterances it completed.
     pub fn push(&mut self, samples: &[f32]) -> Vec<Vec<f32>> {
         self.pending.extend_from_slice(samples);

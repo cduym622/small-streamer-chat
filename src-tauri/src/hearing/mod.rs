@@ -29,7 +29,10 @@ pub use capture::{Microphone, microphones};
 use signal::{PauseDetector, Resampler, loudness};
 use transcriber::Transcriber;
 
-use crate::{problems, speech_model};
+use crate::{
+    engine::{Command, EngineHandle},
+    problems, speech_model,
+};
 
 pub const STATUS_EVENT: &str = "hearing-status";
 pub const TRANSCRIPT_EVENT: &str = "transcript";
@@ -128,7 +131,8 @@ impl HearingHandle {
     }
 }
 
-pub fn spawn(app: AppHandle, microphone: Option<String>) -> HearingHandle {
+/// What's heard is passed to the `engine`, which decides when to reply.
+pub fn spawn(app: AppHandle, microphone: Option<String>, engine: EngineHandle) -> HearingHandle {
     let (messages, inbox) = mpsc::channel();
     let status = Arc::new(Mutex::new(HearingStatus {
         model: ModelStatus::Checking,
@@ -143,6 +147,7 @@ pub fn spawn(app: AppHandle, microphone: Option<String>) -> HearingHandle {
     };
     let worker = Worker {
         app,
+        engine,
         messages,
         status,
         transcriber: None,
@@ -173,6 +178,7 @@ struct Mic {
 
 struct Worker {
     app: AppHandle,
+    engine: EngineHandle,
     /// For the mic's callbacks to post audio back to this thread.
     messages: mpsc::Sender<Message>,
     status: Arc<Mutex<HearingStatus>>,
@@ -275,7 +281,14 @@ impl Worker {
     }
 
     fn close_mic(&mut self) {
-        self.mic = None;
+        // Closing mid-sentence still ends the sentence.
+        if self
+            .mic
+            .take()
+            .is_some_and(|mic| mic.detector.is_speaking())
+        {
+            self.engine.send(Command::Heard(None));
+        }
         let _ = self.app.emit(LEVEL_EVENT, 0.0);
         self.update(|status| {
             status.listening = false;
@@ -314,31 +327,49 @@ impl Worker {
 
         let mut resampled = Vec::with_capacity(samples.len());
         mic.resampler.process(samples, &mut resampled);
-        for utterance in mic.detector.push(&resampled) {
-            self.transcribe(&utterance);
+        let was_speaking = mic.detector.is_speaking();
+        let utterances = mic.detector.push(&resampled);
+        let is_speaking = mic.detector.is_speaking();
+
+        // Tell the engine when the streamer starts and stops talking, so the
+        // Practice Chat replies at pauses instead of talking over them.
+        let ended = was_speaking && !is_speaking;
+        if ended && utterances.is_empty() {
+            // Too short to be words, like a cough.
+            self.engine.send(Command::Heard(None));
+        }
+        for utterance in &utterances {
+            let text = self.transcribe(utterance);
+            self.engine.send(Command::Heard(text));
+        }
+        if is_speaking && (!was_speaking || !utterances.is_empty()) {
+            self.engine.send(Command::SpeechStarted);
         }
     }
 
-    fn transcribe(&mut self, utterance: &[f32]) {
+    fn transcribe(&mut self, utterance: &[f32]) -> Option<String> {
         // Without the model there's nothing to do yet; the UI shows why.
-        let Some(transcriber) = self.transcriber.as_mut() else {
-            return;
-        };
+        let transcriber = self.transcriber.as_mut()?;
         match transcriber.transcribe(utterance) {
             Ok(Some(text)) => {
                 let line = TranscriptLine {
                     id: self.next_line,
-                    text,
+                    text: text.clone(),
                 };
                 self.next_line += 1;
                 let _ = self.app.emit(TRANSCRIPT_EVENT, line);
+                Some(text)
             }
-            Ok(None) => {}
+            Ok(None) => None,
             Err(error) if !self.transcription_failed => {
                 self.transcription_failed = true;
                 self.report(error);
+                None
             }
-            Err(error) => eprintln!("{error}"),
+            Err(error) => {
+                eprintln!("{error}");
+                None
+            }
         }
     }
 }

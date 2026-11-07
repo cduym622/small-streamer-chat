@@ -3,7 +3,9 @@
 pub struct Persona {
     pub username: &'static str,
     pub color: &'static str,
-    /// Placeholder lines used until the AI writes messages (M3).
+    /// How this AI Chatter talks, for the AI writing its messages.
+    pub personality: &'static str,
+    /// Lines used when no AI Connection is set up.
     pub canned_lines: &'static [&'static str],
 }
 
@@ -11,6 +13,7 @@ pub const PERSONAS: [Persona; 3] = [
     Persona {
         username: "pixelpop_kai",
         color: "#ff7ab2",
+        personality: "The hype friend. Excitable and supportive, cheers good moments, writes short bursts, sometimes in caps.",
         canned_lines: &[
             "LETS GOOO",
             "this is actually so clean",
@@ -25,6 +28,7 @@ pub const PERSONAS: [Persona; 3] = [
     Persona {
         username: "curious_ava",
         color: "#4fc3f7",
+        personality: "The curious newcomer. Asks the streamer genuine questions about what they're doing, their opinions and their plans, so they have something to answer.",
         canned_lines: &[
             "wait how long have you been streaming?",
             "what's the plan for today?",
@@ -39,6 +43,7 @@ pub const PERSONAS: [Persona; 3] = [
     Persona {
         username: "backseat_benny",
         color: "#9ccc65",
+        personality: "The backseater. Gives playful, confident and often questionable advice, teases the streamer about mistakes and bad luck, but is never mean.",
         canned_lines: &[
             "you should've gone left there",
             "just saying i would've used the other one",

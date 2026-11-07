@@ -11,6 +11,8 @@ export interface ChatMessage {
 export interface EngineState {
   running: boolean;
   backedOff: boolean;
+  /** AI cost of the current (or last) Session, in US dollars. */
+  sessionCost: number;
 }
 
 export type ModelStatus =
