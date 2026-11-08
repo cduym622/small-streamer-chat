@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import "./shared/chat.css";
 import "./App.css";
-import { EVENTS, type ChatMessage, type EngineState } from "./shared/chat";
+import {
+  CHATGPT_USAGE_URL,
+  EVENTS,
+  type ChatMessage,
+  type EngineState,
+} from "./shared/chat";
 import { MicrophoneSettings, Transcript } from "./Hearing";
 import { AiConnection } from "./AiConnection";
 
@@ -22,6 +28,7 @@ function App() {
     running: false,
     backedOff: false,
     sessionCost: 0,
+    provider: "none",
   });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
@@ -77,8 +84,21 @@ function App() {
       <header className="app-header">
         <h1>Small Streamer Chat</h1>
         <span className={`status status-${status.toLowerCase().replace(" ", "-")}`}>{status}</span>
-        <span className="cost" title="What this Session has cost on your Anthropic account so far">
-          Session cost ${state.sessionCost.toFixed(4)}
+        <span className="cost">
+          {state.provider === "chatGpt" ? (
+            <>
+              Written by your ChatGPT plan ·{" "}
+              <button className="link" onClick={() => openUrl(CHATGPT_USAGE_URL)}>
+                Manage usage
+              </button>
+            </>
+          ) : state.provider === "anthropic" ? (
+            <span title="What this Session has cost on your Anthropic account so far">
+              Written by Claude Haiku · Session cost ${state.sessionCost.toFixed(4)}
+            </span>
+          ) : (
+            "Canned lines (no AI connected)"
+          )}
         </span>
       </header>
 

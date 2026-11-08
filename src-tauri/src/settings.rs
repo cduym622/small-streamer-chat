@@ -6,6 +6,8 @@ use std::{fs, io, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime};
 
+use crate::ai::Provider;
+
 const FILE_NAME: &str = "settings.json";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -15,6 +17,25 @@ pub struct Settings {
     pub microphone: Option<String>,
     /// What the stream is about, in the streamer's words (Stream Context).
     pub stream_context: String,
+    /// The AI Connection the streamer picked to write messages, when more
+    /// than one is set up.
+    pub ai_choice: Option<Provider>,
+    /// The ChatGPT account signed in with (its tokens are in the keychain).
+    pub chatgpt: Option<ChatGptAccount>,
+    /// This computer's ID for ChatGPT sign-in, made on first use.
+    pub chatgpt_host_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatGptAccount {
+    /// Issued to this app for this account when it was first signed in.
+    pub client_id: String,
+    pub email: String,
+    /// OpenAI's ID for the account.
+    pub subject: String,
+    /// The chosen model; `None` uses the smallest, fastest one on offer.
+    pub model: Option<String>,
 }
 
 fn path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {

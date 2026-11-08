@@ -15,7 +15,7 @@ use tokio::{
 };
 
 use crate::{
-    ai::{Anthropic, Heard, Prompt, Reason, Reply},
+    ai::{Ai, Heard, Prompt, Provider, Reason, Reply},
     chat::ChatMessage,
     personas::PERSONAS,
     problems,
@@ -48,6 +48,8 @@ pub struct EngineState {
     pub backed_off: bool,
     /// AI cost of the current (or last) Session, in US dollars.
     pub session_cost: f64,
+    /// The AI Connection writing the messages.
+    pub provider: Provider,
 }
 
 impl EngineState {
@@ -63,7 +65,7 @@ pub enum Command {
     ToggleBackOff,
     Nudge,
     /// The AI Connection to write messages with; `None` uses canned lines.
-    SetAi(Option<Anthropic>),
+    SetAi(Option<Ai>),
     SetStreamContext(String),
     /// The streamer started talking.
     SpeechStarted,
@@ -147,7 +149,7 @@ struct Engine<R: Runtime> {
     handle: EngineHandle,
     next_id: u64,
     last_persona: Option<usize>,
-    ai: Option<Anthropic>,
+    ai: Option<Ai>,
     stream_context: String,
     /// Counts Sessions, so replies from an earlier Session are ignored.
     session: u64,
@@ -218,7 +220,11 @@ impl<R: Runtime> Engine<R> {
                     self.start_round(true);
                 }
             }
-            Command::SetAi(ai) => self.ai = ai,
+            Command::SetAi(ai) => {
+                let provider = ai.as_ref().map_or(Provider::None, Ai::provider);
+                self.ai = ai;
+                self.set_state(|state| state.provider = provider);
+            }
             Command::SetStreamContext(context) => self.stream_context = context,
             Command::SpeechStarted => self.speaking = true,
             Command::Heard(text) => {
@@ -265,6 +271,9 @@ impl<R: Runtime> Engine<R> {
             self.recent_chat.clear();
             self.last_round = None;
             self.next_round = Some(Instant::now() + FIRST_MESSAGE_DELAY);
+            if let Some(ai) = &self.ai {
+                ai.session_started();
+            }
         } else {
             self.next_round = None;
             self.waiting_for_pause = false;

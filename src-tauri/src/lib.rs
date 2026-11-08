@@ -1,5 +1,7 @@
 mod ai;
+mod ai_connection;
 mod chat;
+mod chatgpt_sign_in;
 mod engine;
 mod hearing;
 mod hotkeys;
@@ -140,63 +142,6 @@ fn dismiss_problem(message: String, problems: State<Problems>) {
     problems.dismiss(&message);
 }
 
-/// Which AI Connection is set up. The key itself never goes to the UI.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AiStatus {
-    connected: bool,
-    /// The end of the key, so the streamer can tell which one it is.
-    key_hint: Option<String>,
-}
-
-fn key_hint(key: &str) -> String {
-    let tail: String = key
-        .chars()
-        .rev()
-        .take(4)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
-    format!("…{tail}")
-}
-
-#[tauri::command]
-fn ai_status() -> Result<AiStatus, String> {
-    let key = keychain::anthropic_key()?;
-    Ok(AiStatus {
-        connected: key.is_some(),
-        key_hint: key.as_deref().map(key_hint),
-    })
-}
-
-/// Checks the key with Anthropic, then saves it and starts using it.
-#[tauri::command]
-async fn save_anthropic_key(
-    key: String,
-    engine: State<'_, EngineHandle>,
-) -> Result<AiStatus, String> {
-    let key = key.trim().to_string();
-    if key.is_empty() {
-        return Err("Paste your Anthropic API key first.".into());
-    }
-    let ai = ai::Anthropic::new(key.clone());
-    ai.check_key().await?;
-    keychain::set_anthropic_key(&key)?;
-    engine.send(Command::SetAi(Some(ai)));
-    Ok(AiStatus {
-        connected: true,
-        key_hint: Some(key_hint(&key)),
-    })
-}
-
-#[tauri::command]
-fn remove_anthropic_key(engine: State<EngineHandle>) -> Result<(), String> {
-    keychain::remove_anthropic_key()?;
-    engine.send(Command::SetAi(None));
-    Ok(())
-}
-
 #[tauri::command]
 fn stream_context(app: AppHandle) -> String {
     settings::load(&app).stream_context
@@ -272,6 +217,7 @@ pub fn run() {
 
     let app = builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(Problems::default())
         .invoke_handler(tauri::generate_handler![
             app_info,
@@ -284,9 +230,15 @@ pub fn run() {
             set_microphone,
             retry_speech_model,
             dismiss_problem,
-            ai_status,
-            save_anthropic_key,
-            remove_anthropic_key,
+            ai_connection::ai_status,
+            ai_connection::save_anthropic_key,
+            ai_connection::remove_anthropic_key,
+            ai_connection::sign_in_with_chatgpt,
+            ai_connection::cancel_chatgpt_sign_in,
+            ai_connection::sign_out_of_chatgpt,
+            ai_connection::chatgpt_models,
+            ai_connection::set_chatgpt_model,
+            ai_connection::set_ai_choice,
             stream_context,
             set_stream_context
         ])
@@ -296,11 +248,8 @@ pub fn run() {
             let settings = settings::load(handle);
             let engine = engine::spawn(handle.clone());
             engine.send(Command::SetStreamContext(settings.stream_context));
-            match keychain::anthropic_key() {
-                Ok(key) => engine.send(Command::SetAi(key.map(ai::Anthropic::new))),
-                Err(error) => problems::report(handle, error),
-            }
             app.manage(engine.clone());
+            ai_connection::init(handle);
             let hearing = hearing::spawn(handle.clone(), settings.microphone, engine.clone());
             hearing.prepare_model(handle.clone());
             listen_during_sessions(&engine, hearing.clone());
