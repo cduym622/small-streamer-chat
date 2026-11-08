@@ -74,12 +74,21 @@ pub struct TranscriptLine {
 }
 
 enum Message {
+    /// A Session started or stopped.
     Listen(bool),
+    /// The setup's mic test started or stopped.
+    Test(bool),
     SetMicrophone(Option<String>),
     Model(ModelStatus),
     ModelDownloaded(PathBuf),
-    Audio { stream: u64, samples: Vec<f32> },
-    StreamFailed { stream: u64, error: String },
+    Audio {
+        stream: u64,
+        samples: Vec<f32>,
+    },
+    StreamFailed {
+        stream: u64,
+        error: String,
+    },
 }
 
 /// Cheap-to-clone handle for talking to the hearing thread.
@@ -95,9 +104,14 @@ impl HearingHandle {
         self.status.lock().unwrap().clone()
     }
 
-    /// Opens or closes the mic.
+    /// Opens or closes the mic for a Session.
     pub fn listen(&self, listen: bool) {
         let _ = self.messages.send(Message::Listen(listen));
+    }
+
+    /// Opens or closes the mic for testing it, without a Session.
+    pub fn test(&self, testing: bool) {
+        let _ = self.messages.send(Message::Test(testing));
     }
 
     pub fn set_microphone(&self, id: Option<String>) {
@@ -152,6 +166,8 @@ pub fn spawn(app: AppHandle, microphone: Option<String>, engine: EngineHandle) -
         status,
         transcriber: None,
         mic: None,
+        in_session: false,
+        testing: false,
         next_stream: 0,
         next_line: 0,
         transcription_failed: false,
@@ -184,6 +200,9 @@ struct Worker {
     status: Arc<Mutex<HearingStatus>>,
     transcriber: Option<Transcriber>,
     mic: Option<Mic>,
+    /// The mic is open while either of these is true.
+    in_session: bool,
+    testing: bool,
     next_stream: u64,
     next_line: u64,
     transcription_failed: bool,
@@ -193,9 +212,14 @@ impl Worker {
     fn run(mut self, inbox: mpsc::Receiver<Message>) {
         for message in inbox {
             match message {
-                Message::Listen(true) if self.mic.is_none() => self.open_mic(),
-                Message::Listen(true) => {}
-                Message::Listen(false) => self.close_mic(),
+                Message::Listen(listen) => {
+                    self.in_session = listen;
+                    self.update_mic();
+                }
+                Message::Test(testing) => {
+                    self.testing = testing;
+                    self.update_mic();
+                }
                 Message::SetMicrophone(id) => {
                     self.update(|status| status.microphone = id);
                     if self.mic.is_some() {
@@ -212,6 +236,15 @@ impl Worker {
                     }
                 }
             }
+        }
+    }
+
+    fn update_mic(&mut self) {
+        let wanted = self.in_session || self.testing;
+        match (wanted, self.mic.is_some()) {
+            (true, false) => self.open_mic(),
+            (false, true) => self.close_mic(),
+            _ => {}
         }
     }
 
@@ -305,15 +338,11 @@ impl Worker {
         mic.heard_sound |= samples.iter().any(|&s| s != 0.0);
         if !mic.heard_sound && !mic.warned_silent && mic.opened.elapsed() >= SILENT_MIC_WARNING {
             mic.warned_silent = true;
-            let place = if cfg!(target_os = "macos") {
-                "System Settings → Privacy & Security → Microphone"
-            } else {
-                "Settings → Privacy & security → Microphone"
-            };
             problems::report(
                 &self.app,
                 format!(
-                    "Your microphone is sending complete silence. If it isn't muted, allow microphone access for Small Streamer Chat in {place}, then press Stop and Start."
+                    "Your microphone is sending complete silence. Check that it isn't muted. {} Then press Stop and Start.",
+                    capture::permission_hint()
                 ),
             );
         }

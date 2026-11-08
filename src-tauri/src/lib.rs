@@ -106,15 +106,33 @@ struct AppInfo {
     overlay_url: String,
     hotkeys: Vec<hotkeys::HotkeyInfo>,
     problems: Vec<String>,
+    /// Show the first-run setup.
+    needs_setup: bool,
 }
 
 #[tauri::command]
-fn app_info(problems: State<Problems>) -> AppInfo {
+fn app_info(app: AppHandle, problems: State<Problems>) -> AppInfo {
     AppInfo {
         overlay_url: overlay::url(),
         hotkeys: hotkeys::list(),
         problems: problems.all(),
+        needs_setup: !settings::load(&app).setup_done,
     }
+}
+
+/// The first-run setup was finished or skipped; it can be reopened anytime.
+#[tauri::command]
+fn finish_setup(app: AppHandle, hearing: State<HearingHandle>) -> Result<(), String> {
+    hearing.test(false);
+    let mut settings = settings::load(&app);
+    settings.setup_done = true;
+    settings::save(&app, &settings).map_err(|e| format!("Couldn't save the settings: {e}"))
+}
+
+/// Opens the mic outside a Session, so the setup can show it works.
+#[tauri::command]
+fn test_microphone(testing: bool, hearing: State<HearingHandle>) {
+    hearing.test(testing);
 }
 
 #[tauri::command]
@@ -229,6 +247,8 @@ pub fn run() {
             list_microphones,
             set_microphone,
             retry_speech_model,
+            finish_setup,
+            test_microphone,
             dismiss_problem,
             ai_connection::ai_status,
             ai_connection::save_anthropic_key,

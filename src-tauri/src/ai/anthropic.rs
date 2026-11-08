@@ -8,7 +8,9 @@ use std::time::Duration;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{Prompt, Reply, messages_schema, parse_messages, system_prompt, user_message};
+use super::{
+    Prompt, Reply, messages_schema, network_error, parse_messages, system_prompt, user_message,
+};
 
 const API: &str = "https://api.anthropic.com/v1";
 const API_VERSION: &str = "2026-10-21";
@@ -47,7 +49,7 @@ impl Anthropic {
             .header("anthropic-version", API_VERSION)
             .send()
             .await
-            .map_err(|e| format!("Couldn't reach Anthropic: {e}"))?;
+            .map_err(|e| network_error("Anthropic", &e))?;
         if response.status().is_success() {
             Ok(())
         } else {
@@ -64,7 +66,7 @@ impl Anthropic {
             .json(&request_body(prompt))
             .send()
             .await
-            .map_err(|e| format!("Couldn't reach Anthropic: {e}"))?;
+            .map_err(|e| network_error("Anthropic", &e))?;
         if !response.status().is_success() {
             return Err(error_message(response).await);
         }

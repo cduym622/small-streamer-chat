@@ -109,7 +109,11 @@ export function MicrophoneSettings() {
 }
 
 /** What speech recognition heard, for checking that it works. */
-export function Transcript() {
+export function Transcript({
+  emptyText = "Start a Session and say something. Nothing here is saved.",
+}: {
+  emptyText?: string;
+}) {
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const end = useRef<HTMLDivElement>(null);
 
@@ -129,7 +133,7 @@ export function Transcript() {
       <summary>What the chat hears</summary>
       <div className="transcript-lines">
         {lines.length === 0 ? (
-          <p className="hint">Start a Session and say something. Nothing here is saved.</p>
+          <p className="hint">{emptyText}</p>
         ) : (
           lines.map((line) => <p key={line.id}>{line.text}</p>)
         )}

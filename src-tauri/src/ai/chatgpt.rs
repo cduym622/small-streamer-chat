@@ -18,7 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::time::Instant;
 
-use super::{Prompt, Reply, messages_schema, parse_messages, system_prompt, user_message};
+use super::{
+    Prompt, Reply, messages_schema, network_error, parse_messages, system_prompt, user_message,
+};
 use crate::keychain;
 
 pub const ISSUER: &str = "https://auth.openai.com";
@@ -160,7 +162,7 @@ impl Session {
             .bearer_auth(token)
             .send()
             .await
-            .map_err(|e| format!("Couldn't reach ChatGPT: {e}"))?;
+            .map_err(|e| network_error("ChatGPT", &e))?;
         let status = response.status();
         let body: Value = response
             .json()
@@ -420,7 +422,7 @@ impl Failure {
             status: None,
             code: Some("network".into()),
             param: None,
-            detail: Some(error.to_string()),
+            detail: Some(network_error("ChatGPT", error)),
         }
     }
 
@@ -450,7 +452,7 @@ impl Failure {
     fn message(&self, model: &str) -> String {
         let detail = self.detail.clone().unwrap_or_default();
         match (self.code.as_deref(), self.status) {
-            (Some("network"), _) => format!("Couldn't reach ChatGPT: {detail}"),
+            (Some("network"), _) => detail,
             (Some("subscription_sharing_unsupported_capability"), _) => format!(
                 "ChatGPT can't write chat messages with {model} ({detail}). Pick another model under AI Connection."
             ),
@@ -512,7 +514,7 @@ pub async fn token_request(
         .form(form)
         .send()
         .await
-        .map_err(|e| TokenError::Other(format!("Couldn't reach ChatGPT: {e}")))?;
+        .map_err(|e| TokenError::Other(network_error("ChatGPT", &e)))?;
     let status = response.status();
     if status.is_success() {
         return response

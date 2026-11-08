@@ -95,7 +95,7 @@ jobs:
             - **Mac with Apple Silicon (M1 or newer):** the `aarch64.dmg` file
             - **Mac with Intel:** the `x64.dmg` file
 
-            These builds are not code-signed yet, so Windows and macOS will show a warning the first time you open them.
+            The app isn't code-signed, so Windows and macOS warn you the first time you open it. The [install steps](https://github.com/cduym622/small-streamer-chat#install) show how to get past the warning.
           releaseDraft: true
           prerelease: false
           uploadWorkflowArtifacts: ${{ !startsWith(github.ref, 'refs/tags/v') }}

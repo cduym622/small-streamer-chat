@@ -27,6 +27,16 @@ pub fn microphones() -> Vec<Microphone> {
         .collect()
 }
 
+/// Where to allow microphone access, for errors that may mean it's blocked.
+pub fn permission_hint() -> String {
+    let place = if cfg!(target_os = "macos") {
+        "System Settings → Privacy & Security → Microphone"
+    } else {
+        "Settings → Privacy & security → Microphone"
+    };
+    format!("If it's blocked, allow microphone access for Small Streamer Chat in {place}.")
+}
+
 /// A running microphone stream. Audio stops when it's dropped.
 pub struct Capture {
     _stream: Stream,
@@ -46,14 +56,14 @@ pub fn open(
     let device = id
         .and_then(|id| host.device_by_id(&id.parse().ok()?))
         .or_else(|| host.default_input_device())
-        .ok_or("No microphone found.")?;
+        .ok_or("No microphone found. Plug one in, then press Stop and Start.")?;
     let name = device
         .description()
         .map(|description| description.name().to_string())
         .unwrap_or_else(|_| "Microphone".into());
     let config = device
         .default_input_config()
-        .map_err(|e| format!("Couldn't use {name}: {e}"))?;
+        .map_err(|e| format!("Couldn't use {name}: {e}. {}", permission_hint()))?;
     let sample_rate = config.sample_rate();
 
     use cpal::SampleFormat as F;
@@ -70,10 +80,10 @@ pub fn open(
             ));
         }
     }
-    .map_err(|e| format!("Couldn't open {name}: {e}"))?;
+    .map_err(|e| format!("Couldn't open {name}: {e}. {}", permission_hint()))?;
     stream
         .play()
-        .map_err(|e| format!("Couldn't start {name}: {e}"))?;
+        .map_err(|e| format!("Couldn't start {name}: {e}. {}", permission_hint()))?;
 
     Ok(Capture {
         _stream: stream,

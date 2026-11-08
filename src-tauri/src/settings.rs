@@ -13,6 +13,8 @@ const FILE_NAME: &str = "settings.json";
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
+    /// The first-run setup was finished or skipped.
+    pub setup_done: bool,
     /// Chosen microphone's device id; `None` follows the system default.
     pub microphone: Option<String>,
     /// What the stream is about, in the streamer's words (Stream Context).

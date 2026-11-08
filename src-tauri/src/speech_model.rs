@@ -37,32 +37,30 @@ pub async fn ensure<R: Runtime>(
         .await
         .map_err(|e| format!("Couldn't create {}: {e}", dir.display()))?;
     let partial = path.with_extension("part");
-    download(&partial, &mut on_progress)
-        .await
-        .map_err(|e| format!("Couldn't download the speech model: {e}"))?;
+    download(&partial, &mut on_progress).await?;
     fs::rename(&partial, &path)
         .await
         .map_err(|e| format!("Couldn't save the speech model: {e}"))?;
     Ok(path)
 }
 
-async fn download(
-    to: &Path,
-    on_progress: &mut impl FnMut(u64, u64),
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut response = reqwest::get(URL).await?.error_for_status()?;
-    let mut file = fs::File::create(to).await?;
+async fn download(to: &Path, on_progress: &mut impl FnMut(u64, u64)) -> Result<(), String> {
+    let mut response = reqwest::get(URL)
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|e| download_error(&e))?;
+    let mut file = fs::File::create(to).await.map_err(|e| save_error(&e))?;
     let mut hasher = Sha256::new();
     let mut downloaded = 0;
     on_progress(0, SIZE);
 
-    while let Some(chunk) = response.chunk().await? {
-        file.write_all(&chunk).await?;
+    while let Some(chunk) = response.chunk().await.map_err(|e| download_error(&e))? {
+        file.write_all(&chunk).await.map_err(|e| save_error(&e))?;
         hasher.update(&chunk);
         downloaded += chunk.len() as u64;
         on_progress(downloaded, SIZE);
     }
-    file.flush().await?;
+    file.flush().await.map_err(|e| save_error(&e))?;
 
     let hash: String = hasher
         .finalize()
@@ -71,7 +69,24 @@ async fn download(
         .collect();
     if downloaded != SIZE || hash != SHA256 {
         let _ = fs::remove_file(to).await;
-        return Err("the file was incomplete or corrupted, please try again".into());
+        return Err(
+            "The speech model download was incomplete or corrupted. Press Try again.".into(),
+        );
     }
     Ok(())
+}
+
+fn download_error(error: &reqwest::Error) -> String {
+    if error.is_connect() || error.is_timeout() || error.is_body() {
+        "Couldn't download the speech model. Check your internet connection, then press Try again."
+            .into()
+    } else {
+        format!("Couldn't download the speech model ({error}). Press Try again.")
+    }
+}
+
+fn save_error(error: &std::io::Error) -> String {
+    format!(
+        "Couldn't save the speech model ({error}). It needs about 60 MB of free disk space. Press Try again."
+    )
 }
