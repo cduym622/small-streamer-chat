@@ -37,10 +37,13 @@ The app isn't code-signed (that costs money every year), so your computer warns 
 ### Mac
 
 1. Open the `.dmg` file and drag **Small Streamer Chat** into **Applications**.
-2. Open it from Applications. macOS says it **can't check the app for malicious software**. Click **Done** (or **OK**).
-3. Open **System Settings → Privacy & Security**, scroll down to the message about Small Streamer Chat, and click **Open Anyway**. Confirm with your password.
+2. Open it from Applications. macOS says **"Small Streamer Chat" Not Opened: Apple could not verify it is free of malware**. Click **Done**.
 
-<!-- TODO: add docs/images/macos-open-anyway.png -->
+   <img src="docs/images/macos-not-opened.png" width="260" alt="The macOS &quot;Not Opened&quot; dialog with Move to Trash and Done buttons">
+
+3. Open **System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** next to "Small Streamer Chat" was blocked. Confirm with your password, then click **Open Anyway** once more.
+
+   <img src="docs/images/macos-open-anyway.png" width="474" alt="Privacy & Security showing &quot;Small Streamer Chat was blocked to protect your Mac&quot; with an Open Anyway button">
 
 4. When the app asks for your microphone, click **Allow**. If you clicked Don't Allow, turn it on in **System Settings → Privacy & Security → Microphone**.
 
@@ -49,6 +52,8 @@ macOS 11 (Big Sur) or newer is required.
 ## Set up
 
 The first time it opens, a short setup walks you through everything:
+
+<img src="docs/images/setup.png" width="600" alt="The setup's AI Connection step, with Continue with ChatGPT and an Anthropic API key field">
 
 1. **Microphone.** Pick your mic and say something. Your words should appear on screen. The first launch also downloads the speech model (about 60 MB, once).
 2. **AI Connection.** Choose how the messages are written:
@@ -84,7 +89,7 @@ The hotkeys work while you're in a game. Closing the window keeps the app runnin
 ## Problems?
 
 - **The chat says nothing about what I said.** Check that your words show up under "What the chat hears". If they don't, pick the right microphone and check the level bar moves when you talk.
-- **"Your microphone is sending complete silence."** Microphone access is probably blocked. Allow it in System Settings → Privacy & Security → Microphone (Mac) or Settings → Privacy & security → Microphone (Windows), then press Stop and Start.
+- **"Your microphone is sending complete silence."** Microphone access is probably blocked. Allow it in System Settings → Privacy & Security → Microphone (Mac) or Settings → Privacy & security → Microphone (Windows), then quit the app from the menu bar or system tray and open it again.
 - **The speech model download failed.** Check your internet connection and press **Try again**.
 - **The Overlay is blank in OBS.** Make sure the app is running and the URL is exactly `http://127.0.0.1:37319/`.
 

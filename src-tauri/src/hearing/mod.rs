@@ -341,8 +341,13 @@ impl Worker {
             problems::report(
                 &self.app,
                 format!(
-                    "Your microphone is sending complete silence. Check that it isn't muted. {} Then press Stop and Start.",
-                    capture::permission_hint()
+                    "Your microphone is sending complete silence. Check that it isn't muted. {} Then quit Small Streamer Chat from the {} and open it again.",
+                    capture::permission_hint(),
+                    if cfg!(target_os = "macos") {
+                        "menu bar"
+                    } else {
+                        "system tray"
+                    }
                 ),
             );
         }

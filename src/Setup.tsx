@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { AiConnection } from "./AiConnection";
 import { MicrophoneSettings, Transcript } from "./Hearing";
 import { ObsOverlay } from "./ObsOverlay";
+import { Problems } from "./Problems";
 import { StreamContext } from "./StreamContext";
 
 const STEPS = ["Welcome", "Microphone", "AI Connection", "Your stream", "OBS"] as const;
@@ -12,7 +13,18 @@ const STEPS = ["Welcome", "Microphone", "AI Connection", "Your stream", "OBS"] a
  * OBS. Shown on first launch and from "Setup guide"; every step can be
  * changed later in the main window.
  */
-export function Setup({ overlayUrl, onDone }: { overlayUrl: string; onDone: () => void }) {
+export function Setup({
+  overlayUrl,
+  problems,
+  onDismissProblem,
+  onDone,
+}: {
+  overlayUrl: string;
+  /** Shown here too, since the dialog covers the main window's. */
+  problems: string[];
+  onDismissProblem: (problem: string) => void;
+  onDone: () => void;
+}) {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const last = step === STEPS.length - 1;
@@ -65,6 +77,7 @@ export function Setup({ overlayUrl, onDone }: { overlayUrl: string; onDone: () =
               </p>
             </>
           )}
+          <Problems problems={problems} onDismiss={onDismissProblem} />
           {error && <p className="error">{error}</p>}
         </div>
 

@@ -13,6 +13,7 @@ import {
 import { MicrophoneSettings, Transcript } from "./Hearing";
 import { AiConnection } from "./AiConnection";
 import { ObsOverlay } from "./ObsOverlay";
+import { Problems } from "./Problems";
 import { Setup } from "./Setup";
 import { StreamContext } from "./StreamContext";
 
@@ -74,7 +75,12 @@ function App() {
   return (
     <div className="app">
       {setupOpen && info && (
-        <Setup overlayUrl={info.overlayUrl} onDone={() => setSetupOpen(false)} />
+        <Setup
+          overlayUrl={info.overlayUrl}
+          problems={problems}
+          onDismissProblem={dismissProblem}
+          onDone={() => setSetupOpen(false)}
+        />
       )}
       <header className="app-header">
         <h1>Small Streamer Chat</h1>
@@ -100,16 +106,7 @@ function App() {
         </span>
       </header>
 
-      {problems.length > 0 && (
-        <div className="problems" role="alert">
-          {problems.map((problem) => (
-            <p key={problem}>
-              {problem}
-              <button onClick={() => dismissProblem(problem)}>Dismiss</button>
-            </p>
-          ))}
-        </div>
-      )}
+      <Problems problems={problems} onDismiss={dismissProblem} />
 
       <StreamContext onError={addProblem} />
 
