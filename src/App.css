@@ -286,11 +286,6 @@ kbd {
 }
 
 .problems button,
-.ai-connected button {
-  padding: 2px 10px;
-  font-size: 12px;
-}
-
 .stream-context {
   display: flex;
   align-items: center;
@@ -322,17 +317,8 @@ kbd {
   font-size: 13px;
 }
 
-.ai-connected {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 4px 0 20px;
-  font-size: 13px;
-  color: #16a34a;
-}
-
 .side .error + h2,
-.key-form + h2 {
+.connection + h2 {
   margin-top: 20px;
 }
 
@@ -363,10 +349,6 @@ button.chatgpt {
   background: #000;
   border-color: #000;
   color: #fff;
-}
-
-.ai-connected.inactive {
-  color: var(--muted);
 }
 
 .model-picker {
@@ -402,4 +384,71 @@ button.chatgpt {
 .welcome button {
   padding: 2px 10px;
   font-size: 12px;
+}
+
+/* One AI Connection; the one writing the messages is highlighted. */
+.connection {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.connection.active {
+  border-color: var(--accent);
+}
+
+.connection-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.connection-title input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.in-use,
+.not-in-use {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.in-use {
+  background: var(--accent);
+  color: #fff;
+}
+
+.not-in-use {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.connection-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+
+.connection-detail span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.connection-detail button {
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.connection .hint:last-child {
+  margin-bottom: 0;
 }

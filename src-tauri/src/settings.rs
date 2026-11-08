@@ -6,6 +6,8 @@ use std::{fs, io, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime};
 
+use crate::ai::Provider;
+
 const FILE_NAME: &str = "settings.json";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -15,6 +17,9 @@ pub struct Settings {
     pub microphone: Option<String>,
     /// What the stream is about, in the streamer's words (Stream Context).
     pub stream_context: String,
+    /// The AI Connection the streamer picked to write messages, when more
+    /// than one is set up.
+    pub ai_choice: Option<Provider>,
     /// The ChatGPT account signed in with (its tokens are in the keychain).
     pub chatgpt: Option<ChatGptAccount>,
     /// This computer's ID for ChatGPT sign-in, made on first use.

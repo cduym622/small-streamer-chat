@@ -1,5 +1,6 @@
 //! The AI Connection: an Anthropic API key, a ChatGPT sign-in, or neither
-//! (canned lines). When both are set up, the ChatGPT plan is used.
+//! (canned lines). When both are set up, the streamer picks which one
+//! writes the messages.
 
 use std::sync::{Arc, Mutex};
 
@@ -54,24 +55,56 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     connect(app);
 }
 
+/// The connection that writes messages: the streamer's choice if it's set
+/// up, otherwise whichever one is.
+fn active(choice: Option<Provider>, chatgpt_ready: bool, has_key: bool) -> Provider {
+    let ready = |provider| match provider {
+        Provider::ChatGpt => chatgpt_ready,
+        Provider::Anthropic => has_key,
+        Provider::None => true,
+    };
+    match choice {
+        Some(choice) if ready(choice) => choice,
+        _ if chatgpt_ready => Provider::ChatGpt,
+        _ if has_key => Provider::Anthropic,
+        _ => Provider::None,
+    }
+}
+
 /// Hands the engine the AI Connection to use, after any change.
 fn connect<R: Runtime>(app: &AppHandle<R>) {
     let session = app.state::<Arc<Session>>().inner().clone();
     let settings = settings::load(app);
-    let ai = match &settings.chatgpt {
-        Some(account) if session.is_signed_in() => {
-            Some(Ai::ChatGpt(ChatGpt::new(session, account.model.clone())))
-        }
-        _ => match keychain::get(keychain::ANTHROPIC_KEY) {
-            Ok(key) => key.map(|key| Ai::Anthropic(Anthropic::new(key))),
-            Err(error) => {
-                problems::report(app, error);
-                None
-            }
-        },
+    let key = keychain::get(keychain::ANTHROPIC_KEY).unwrap_or_else(|error| {
+        problems::report(app, error);
+        None
+    });
+    let chatgpt_ready = settings.chatgpt.is_some() && session.is_signed_in();
+    let ai = match active(settings.ai_choice, chatgpt_ready, key.is_some()) {
+        Provider::ChatGpt => Some(Ai::ChatGpt(ChatGpt::new(
+            session,
+            settings.chatgpt.and_then(|account| account.model),
+        ))),
+        Provider::Anthropic => key.map(|key| Ai::Anthropic(Anthropic::new(key))),
+        Provider::None => None,
     };
     app.state::<EngineHandle>().send(Command::SetAi(ai));
     let _ = app.emit(STATUS_EVENT, ());
+}
+
+/// Saves which connection writes the messages.
+fn choose<R: Runtime>(app: &AppHandle<R>, provider: Provider) -> Result<(), String> {
+    let mut settings = settings::load(app);
+    settings.ai_choice = Some(provider);
+    settings::save(app, &settings).map_err(|e| format!("Couldn't save your choice: {e}"))
+}
+
+/// The streamer picked which connection writes the messages.
+#[tauri::command]
+pub fn set_ai_choice(provider: Provider, app: AppHandle) -> Result<(), String> {
+    choose(&app, provider)?;
+    connect(&app);
+    Ok(())
 }
 
 /// What the UI shows. Secrets never go to the UI.
@@ -102,20 +135,17 @@ fn key_hint(key: &str) -> String {
 #[tauri::command]
 pub fn ai_status(app: AppHandle, session: State<Arc<Session>>) -> Result<AiStatus, String> {
     let key = keychain::get(keychain::ANTHROPIC_KEY)?;
-    let chatgpt = settings::load(&app).chatgpt.map(|account| ChatGptStatus {
+    let settings = settings::load(&app);
+    let chatgpt = settings.chatgpt.map(|account| ChatGptStatus {
         email: account.email,
         signed_in: session.is_signed_in(),
         model: account.model,
     });
-    let active = match (&chatgpt, &key) {
-        (Some(status), _) if status.signed_in => Provider::ChatGpt,
-        (_, Some(_)) => Provider::Anthropic,
-        _ => Provider::None,
-    };
+    let chatgpt_ready = chatgpt.as_ref().is_some_and(|status| status.signed_in);
     Ok(AiStatus {
         anthropic_key_hint: key.as_deref().map(key_hint),
         chatgpt,
-        active,
+        active: active(settings.ai_choice, chatgpt_ready, key.is_some()),
     })
 }
 
@@ -128,6 +158,8 @@ pub async fn save_anthropic_key(key: String, app: AppHandle) -> Result<(), Strin
     }
     Anthropic::new(key.clone()).check_key().await?;
     keychain::set(keychain::ANTHROPIC_KEY, &key)?;
+    // Connecting something means wanting to use it.
+    choose(&app, Provider::Anthropic)?;
     connect(&app);
     Ok(())
 }
@@ -195,6 +227,8 @@ pub async fn sign_in_with_chatgpt(
         subject: signed_in.subject,
         model,
     });
+    // Connecting something means wanting to use it.
+    settings.ai_choice = Some(Provider::ChatGpt);
     settings::save(&app, &settings).map_err(|e| format!("Couldn't save the settings: {e}"))?;
     session
         .set_tokens(Some(Tokens {
@@ -281,5 +315,17 @@ mod tests {
     #[test]
     fn key_hints_show_only_the_end() {
         assert_eq!(key_hint("sk-ant-secret-a1b2"), "…a1b2");
+    }
+
+    #[test]
+    fn uses_the_chosen_connection_while_it_is_set_up() {
+        let (chatgpt, anthropic) = (Some(Provider::ChatGpt), Some(Provider::Anthropic));
+        assert_eq!(active(anthropic, true, true), Provider::Anthropic);
+        assert_eq!(active(chatgpt, true, true), Provider::ChatGpt);
+        // The chosen one went away, so the other one takes over.
+        assert_eq!(active(chatgpt, false, true), Provider::Anthropic);
+        assert_eq!(active(anthropic, true, false), Provider::ChatGpt);
+        assert_eq!(active(None, false, false), Provider::None);
+        assert_eq!(active(Some(Provider::None), true, true), Provider::None);
     }
 }

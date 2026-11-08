@@ -13,6 +13,7 @@ interface AiStatus {
     signedIn: boolean;
     model: string | null;
   } | null;
+  /** Which connection writes the messages. */
   active: Provider;
 }
 
@@ -21,9 +22,12 @@ interface ChatGptModels {
   selected: string | null;
 }
 
+type OnError = (error: string | null) => void;
+
 /**
  * How the Practice Chat's messages get written: the streamer's ChatGPT plan,
- * or an Anthropic API key (kept in the OS keychain).
+ * or an Anthropic API key (kept in the OS keychain). With both set up, the
+ * streamer picks one.
  */
 export function AiConnection() {
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -43,26 +47,92 @@ export function AiConnection() {
     };
   }, [refresh]);
 
+  const choose = (provider: Provider) => {
+    setError(null);
+    invoke("set_ai_choice", { provider }).catch((e) => setError(String(e)));
+  };
+
+  const chatgptReady = status?.chatgpt?.signedIn ?? false;
+  const keyReady = status?.anthropicKeyHint != null;
+
   return (
     <>
       <h2>AI Connection</h2>
-      <ChatGptConnection status={status} onError={setError} />
-      <AnthropicKey status={status} onError={setError} />
+      <p className="hint">
+        {status?.active === "none"
+          ? "Connect one to have AI write the messages. Until then the chat uses canned lines."
+          : chatgptReady && keyReady
+            ? "Both are connected. Pick which one writes the messages."
+            : "This writes the Practice Chat's messages."}
+      </p>
+
+      <ConnectionCard
+        title="ChatGPT plan"
+        ready={chatgptReady}
+        active={status?.active === "chatGpt"}
+        onChoose={() => choose("chatGpt")}
+      >
+        <ChatGptConnection status={status} onError={setError} />
+      </ConnectionCard>
+
+      <ConnectionCard
+        title="Claude Haiku (Anthropic API key)"
+        ready={keyReady}
+        active={status?.active === "anthropic"}
+        onChoose={() => choose("anthropic")}
+      >
+        <AnthropicKey hint={status?.anthropicKeyHint ?? null} onError={setError} />
+      </ConnectionCard>
+
       {error && (
         <p className="error">
-          {error} <button className="link" onClick={() => setError(null)}>Dismiss</button>
+          {error}{" "}
+          <button className="link" onClick={() => setError(null)}>
+            Dismiss
+          </button>
         </p>
       )}
     </>
   );
 }
 
-interface SectionProps {
-  status: AiStatus | null;
-  onError: (error: string | null) => void;
+/** One way to write messages, with a radio button once it's set up. */
+function ConnectionCard({
+  title,
+  ready,
+  active,
+  onChoose,
+  children,
+}: {
+  title: string;
+  ready: boolean;
+  active: boolean;
+  onChoose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={active ? "connection active" : "connection"}>
+      <label className="connection-title">
+        <input
+          type="radio"
+          name="ai-connection"
+          checked={active}
+          disabled={!ready}
+          onChange={onChoose}
+        />
+        <span>{title}</span>
+        {active ? (
+          <span className="in-use">In use</span>
+        ) : (
+          ready && <span className="not-in-use">Not in use</span>
+        )}
+      </label>
+      {children}
+    </div>
+  );
 }
 
-function ChatGptConnection({ status, onError }: SectionProps) {
+function ChatGptConnection({ status, onError }: { status: AiStatus | null; onError: OnError }) {
   const [signingIn, setSigningIn] = useState(false);
   const [welcome, setWelcome] = useState(false);
   const account = status?.chatgpt;
@@ -104,13 +174,12 @@ function ChatGptConnection({ status, onError }: SectionProps) {
             <button onClick={() => setWelcome(false)}>Got it</button>
           </div>
         )}
-        <p className="ai-connected">
-          <span>ChatGPT plan, {account.email || "signed in"}</span>
+        <p className="connection-detail">
+          <span>{account.email || "Signed in"}</span>
           <button onClick={signOut}>Sign out</button>
         </p>
         <ChatGptModelPicker model={account.model} onError={onError} />
         <p className="hint">
-          Using ChatGPT plan ·{" "}
           <button className="link" onClick={() => openUrl(CHATGPT_USAGE_URL)}>
             Manage usage
           </button>
@@ -123,8 +192,7 @@ function ChatGptConnection({ status, onError }: SectionProps) {
     <>
       {account && (
         <p className="hint">
-          Your ChatGPT sign-in for {account.email} has ended. Continue with ChatGPT to sign in
-          again.
+          Your sign-in for {account.email} has ended. Continue with ChatGPT to sign in again.
         </p>
       )}
       <div className="chatgpt-sign-in">
@@ -138,13 +206,7 @@ function ChatGptConnection({ status, onError }: SectionProps) {
   );
 }
 
-function ChatGptModelPicker({
-  model,
-  onError,
-}: {
-  model: string | null;
-  onError: (error: string | null) => void;
-}) {
+function ChatGptModelPicker({ model, onError }: { model: string | null; onError: OnError }) {
   const [models, setModels] = useState<ChatGptModels | null>(null);
 
   useEffect(() => {
@@ -177,11 +239,9 @@ function ChatGptModelPicker({
   );
 }
 
-function AnthropicKey({ status, onError }: SectionProps) {
+function AnthropicKey({ hint, onError }: { hint: string | null; onError: OnError }) {
   const [key, setKey] = useState("");
   const [checking, setChecking] = useState(false);
-  const hint = status?.anthropicKeyHint;
-  const chatgptActive = status?.active === "chatGpt";
 
   const save = async () => {
     setChecking(true);
@@ -203,24 +263,18 @@ function AnthropicKey({ status, onError }: SectionProps) {
 
   if (hint) {
     return (
-      <p className={chatgptActive ? "ai-connected inactive" : "ai-connected"}>
-        <span>
-          Claude Haiku, key {hint}
-          {chatgptActive && " (not used while signed in with ChatGPT)"}
-        </span>
+      <p className="connection-detail">
+        <span>Key {hint}</span>
         <button onClick={remove}>Remove</button>
       </p>
     );
   }
 
-  // One AI Connection is enough.
-  if (chatgptActive) return null;
-
   return (
     <>
       <p className="hint">
-        Or paste an Anthropic API key (create one at <code>console.anthropic.com</code> → API keys).
-        Until you connect one, the chat uses canned lines.
+        Create a key at <code>console.anthropic.com</code> → API keys. You pay Anthropic per
+        message (a fraction of a cent).
       </p>
       <form
         className="key-form"

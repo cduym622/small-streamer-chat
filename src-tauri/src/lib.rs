@@ -238,6 +238,7 @@ pub fn run() {
             ai_connection::sign_out_of_chatgpt,
             ai_connection::chatgpt_models,
             ai_connection::set_chatgpt_model,
+            ai_connection::set_ai_choice,
             stream_context,
             set_stream_context
         ])

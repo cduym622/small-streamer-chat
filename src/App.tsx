@@ -84,23 +84,22 @@ function App() {
       <header className="app-header">
         <h1>Small Streamer Chat</h1>
         <span className={`status status-${status.toLowerCase().replace(" ", "-")}`}>{status}</span>
-        {state.provider === "chatGpt" ? (
-          <span className="cost">
-            Using ChatGPT plan ·{" "}
-            <button className="link" onClick={() => openUrl(CHATGPT_USAGE_URL)}>
-              Manage usage
-            </button>
-          </span>
-        ) : (
-          state.provider === "anthropic" && (
-            <span
-              className="cost"
-              title="What this Session has cost on your Anthropic account so far"
-            >
-              Session cost ${state.sessionCost.toFixed(4)}
+        <span className="cost">
+          {state.provider === "chatGpt" ? (
+            <>
+              Written by your ChatGPT plan ·{" "}
+              <button className="link" onClick={() => openUrl(CHATGPT_USAGE_URL)}>
+                Manage usage
+              </button>
+            </>
+          ) : state.provider === "anthropic" ? (
+            <span title="What this Session has cost on your Anthropic account so far">
+              Written by Claude Haiku · Session cost ${state.sessionCost.toFixed(4)}
             </span>
-          )
-        )}
+          ) : (
+            "Canned lines (no AI connected)"
+          )}
+        </span>
       </header>
 
       {problems.length > 0 && (

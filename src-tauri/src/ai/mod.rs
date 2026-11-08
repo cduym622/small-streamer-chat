@@ -52,7 +52,7 @@ pub struct Reply {
 }
 
 /// Which kind of AI Connection is in use, for the UI.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Provider {
     /// Canned lines.
