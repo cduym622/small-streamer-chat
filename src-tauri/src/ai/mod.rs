@@ -91,6 +91,20 @@ impl Ai {
     }
 }
 
+/// A message for a request that didn't get an answer. The engine keeps
+/// trying at the next round, so a short outage fixes itself.
+pub fn network_error(service: &str, error: &reqwest::Error) -> String {
+    if error.is_timeout() {
+        format!("{service} took too long to answer, so the chat will be quieter for a bit.")
+    } else if error.is_connect() {
+        format!(
+            "Couldn't reach {service}. Check your internet connection; the chat will keep trying."
+        )
+    } else {
+        format!("Couldn't reach {service}: {error}")
+    }
+}
+
 /// The JSON Schema of a reply: `{"messages": [{"chatter", "text"}]}`.
 fn messages_schema() -> Value {
     let usernames: Vec<&str> = PERSONAS.iter().map(|p| p.username).collect();
