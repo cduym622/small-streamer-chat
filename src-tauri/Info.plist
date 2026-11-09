@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- The short name in the Dock, Cmd+Tab and the menu bar. Finder keeps the
+       full "Small Streamer Chat". -->
+  <key>CFBundleName</key>
+  <string>Small Streamer</string>
+  <key>CFBundleDisplayName</key>
+  <string>Small Streamer</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>Small Streamer Chat listens while a Session is running so its Practice Chat can react to what you say. Speech is turned into text on this computer and nothing is recorded.</string>
 </dict>
