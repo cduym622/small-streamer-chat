@@ -71,13 +71,20 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quit])?;
 
-    TrayIconBuilder::with_id("main-tray")
-        .icon(
-            app.default_window_icon()
-                .cloned()
-                .expect("app has a default icon"),
-        )
-        .tooltip("Small Streamer Chat")
+    let tray = TrayIconBuilder::with_id("main-tray");
+    // macOS menu bar wants a one-colour template image it can tint for light/dark mode.
+    #[cfg(target_os = "macos")]
+    let tray = tray
+        .icon(tauri::include_image!("icons/tray-template@2x.png"))
+        .icon_as_template(true);
+    #[cfg(not(target_os = "macos"))]
+    let tray = tray.icon(
+        app.default_window_icon()
+            .cloned()
+            .expect("app has a default icon"),
+    );
+
+    tray.tooltip("Small Streamer Chat")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

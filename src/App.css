@@ -1,29 +1,25 @@
+/* Dark only, in the icon's teal. */
 :root {
-  --accent: #9333ea;
-  --bg: #fafafa;
-  --fg: #18181b;
-  --muted: #71717a;
-  --panel: #fff;
-  --border: #e4e4e7;
-  --chat-bg: #18181b;
-  --chat-fg: #efeff1;
+  /* Fills behind white text, like the icon's tile. */
+  --accent: #0f766e;
+  /* Teal for text, outlines and progress on the dark background. */
+  --accent-bright: #2dd4bf;
+  --bg: #0b1312;
+  --fg: #e7efed;
+  --muted: #94a7a3;
+  --panel: #13201e;
+  --border: #24342f;
+  --chat-bg: #060c0b;
+  --chat-fg: #e7efed;
+  --success: #4ade80;
+  --danger: #f87171;
 
+  color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 15px;
   line-height: 1.5;
   color: var(--fg);
   background-color: var(--bg);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e0e10;
-    --fg: #efeff1;
-    --muted: #a1a1aa;
-    --panel: #18181b;
-    --border: #2f2f35;
-    --chat-bg: #000;
-  }
 }
 
 body {
@@ -48,7 +44,7 @@ body {
 .app-header h1 {
   margin: 0;
   font-size: 20px;
-  color: var(--accent);
+  color: var(--accent-bright);
 }
 
 .status {
@@ -73,7 +69,7 @@ body {
 }
 
 .problems {
-  border: 1px solid #f87171;
+  border: 1px solid var(--danger);
   background: rgba(248, 113, 113, 0.12);
   border-radius: 8px;
   padding: 4px 12px;
@@ -100,7 +96,15 @@ button {
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--accent-bright);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 1px;
 }
 
 button:disabled {
@@ -221,7 +225,7 @@ kbd {
 
 .mic-meter div {
   height: 100%;
-  background: #22c55e;
+  background: var(--accent-bright);
   transition: width 0.1s linear;
 }
 
@@ -233,7 +237,7 @@ kbd {
 
 .error,
 .model-failed {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .model-status {
@@ -248,7 +252,7 @@ kbd {
 }
 
 .model-ready {
-  color: #16a34a;
+  color: var(--success);
 }
 
 .transcript {
@@ -326,7 +330,7 @@ button.link {
   padding: 0;
   border: none;
   background: none;
-  color: var(--accent);
+  color: var(--accent-bright);
   font-weight: 400;
   font-size: inherit;
   text-decoration: underline;
@@ -373,7 +377,7 @@ button.chatgpt {
   margin: 4px 0 12px;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-bright);
   font-size: 13px;
 }
 
@@ -395,7 +399,7 @@ button.chatgpt {
 }
 
 .connection.active {
-  border-color: var(--accent);
+  border-color: var(--accent-bright);
 }
 
 .connection-title {
@@ -408,7 +412,7 @@ button.chatgpt {
 
 .connection-title input {
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--accent-bright);
 }
 
 .in-use,
@@ -497,11 +501,11 @@ button.chatgpt {
 }
 
 .setup-steps li.done {
-  border-color: var(--accent);
+  border-color: var(--accent-bright);
 }
 
 .setup-steps li.current {
-  border-color: var(--accent);
+  border-color: var(--accent-bright);
   color: var(--fg);
   font-weight: 600;
 }
