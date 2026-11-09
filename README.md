@@ -68,9 +68,9 @@ You can reopen it anytime with **Setup guide** at the top of the window.
 
 1. In OBS, under **Sources**, click **+** and choose **Browser**.
 2. Set the URL to `http://127.0.0.1:37319/`, the width to 400 and the height to 600.
-3. Drag it where you want the chat. The background is transparent.
+3. Drag it where you want the chat, and drag its corners to make it bigger. The background is transparent.
 
-<!-- TODO: add docs/images/obs-overlay.png -->
+<img src="docs/images/obs-overlay.png" width="800" alt="OBS with a Practice Chat browser source showing AI chat messages over the scene">
 
 Streamlabs and other streaming apps work the same way. The Overlay only shows messages while Small Streamer Chat is running.
 

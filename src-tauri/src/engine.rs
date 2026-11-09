@@ -333,8 +333,7 @@ impl<R: Runtime> Engine<R> {
 
         let Some(ai) = self.ai.clone() else {
             let persona = self.pick_persona();
-            let lines = PERSONAS[persona].canned_lines;
-            let text = lines[fastrand::usize(..lines.len())].to_string();
+            let text = self.pick_line(persona).to_string();
             self.post(persona, text);
             self.schedule_next_round();
             return;
@@ -466,6 +465,27 @@ impl<R: Runtime> Engine<R> {
         }
         index
     }
+
+    /// Picks a canned line this Persona hasn't posted recently.
+    fn pick_line(&self, persona: usize) -> &'static str {
+        let recent: Vec<&str> = self.recent_chat.iter().map(|m| m.text.as_str()).collect();
+        fresh_line(PERSONAS[persona].canned_lines, &recent)
+    }
+}
+
+/// A random line that isn't in `recent`, or any line once all of them are.
+fn fresh_line(lines: &[&'static str], recent: &[&str]) -> &'static str {
+    let fresh: Vec<&'static str> = lines
+        .iter()
+        .copied()
+        .filter(|line| !recent.contains(line))
+        .collect();
+    let pool = if fresh.is_empty() {
+        lines.to_vec()
+    } else {
+        fresh
+    };
+    pool[fastrand::usize(..pool.len())]
 }
 
 fn random_between(min: Duration, max: Duration) -> Duration {
@@ -479,6 +499,16 @@ fn random_gap() -> Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canned_lines_skip_recent_ones() {
+        let lines = ["a", "b", "c"];
+        for _ in 0..50 {
+            assert_eq!(fresh_line(&lines, &["a", "c"]), "b");
+        }
+        // Once every line was used recently, any line will do.
+        assert!(lines.contains(&fresh_line(&lines, &["a", "b", "c"])));
+    }
     use tokio::time::timeout;
 
     fn start_engine() -> (tauri::App<tauri::test::MockRuntime>, EngineHandle) {
